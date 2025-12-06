@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMAS RSUD LEBONG - v1.20 (Admin Super)</title>
+    
+    <script>
+        window.onerror = function(msg, url, line) {
+            if (msg.includes('ResizeObserver')) return;
+            const root = document.getElementById('root');
+            if(root) {
+                root.innerHTML = `
+                    <div style="color:#7f1d1d; background:#fef2f2; padding:30px; text-align:center; font-family:sans-serif; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                        <h2 style="font-size:24px; margin-bottom:10px;">⚠️ Gagal Memuat Sistem</h2>
+                        <p style="margin-bottom:20px; color:#991b1b;">Komputer Anda sepertinya offline atau koneksi internet terputus.<br>Aplikasi ini membutuhkan internet untuk memuat React di awal.</p>
+                        <div style="background:white; padding:15px; border:1px solid #fca5a5; border-radius:8px; display:inline-block; text-align:left; font-family:monospace; font-size:12px;">Error: ${msg} <br> Baris: ${line}</div>
+                        <br><button onclick="window.location.reload()" style="padding:12px 24px; cursor:pointer; background:#dc2626; color:white; border:none; border-radius:8px; font-weight:bold; font-size:16px; margin-top:20px;">Coba Muat Ulang (Refresh)</button>
+                    </div>
+                `;
+            }
+        };
+    </script>
+
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Tinos:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Outfit"', 'sans-serif'], serif: ['"Tinos"', 'serif'] },
+                    colors: { brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' } }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: 'Outfit', sans-serif; }
+        .loader { width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #2563eb; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        table.doc-table { width: 100%; border-collapse: collapse; font-family: 'Tinos', serif; font-size: 10pt; color: black; margin-top: 10px; }
+        table.doc-table th, table.doc-table td { border: 1px solid #000 !important; padding: 6px; text-align: center; vertical-align: middle; }
+        table.doc-table th { background-color: #e0f2fe !important; font-weight: bold; text-transform: uppercase; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
+            .print-area { padding: 0; margin: 0; border: none; shadow: none; width: 100%; display: block !important; }
+            table.doc-table th { background-color: #e5e7eb !important; } 
+            @page { margin: 1cm; size: landscape; }
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div id="root">
+        <div class="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-700 to-sky-500">
+            <span class="loader"></span>
+            <p class="mt-4 text-white font-bold text-lg animate-pulse">Menghubungkan ke Server...</p>
+        </div>
+    </div>
+
+    <script type="text/babel">
+        const React = window.React; const ReactDOM = window.ReactDOM;
+        if (!React || !ReactDOM) throw new Error("Koneksi Internet Diperlukan untuk memuat Library React.");
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- ICONS ---
+        const Icon = ({ name, className }) => {
+            const icons = {
+                Dashboard: <g><path d="M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zM3 14h7v7H3v-7z"/></g>,
+                Box: <g><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></g>,
+                Table: <g><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="12" x2="12" y1="3" y2="21"/></g>,
+                Alert: <g><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z"/></g>,
+                Bell: <g><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></g>,
+                LogOut: <g><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></g>,
+                Printer: <g><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></g>,
+                Download: <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></g>,
+                Upload: <g><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></g>,
+                Search: <g><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></g>,
+                Plus: <g><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></g>,
+                Trash: <g><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></g>,
+                Edit: <g><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></g>,
+                Check: <g><polyline points="20 6 9 17 4 12"/></g>,
+                Menu: <g><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></g>,
+                X: <g><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></g>,
+                FileText: <g><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></g>,
+                Settings: <g><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></g>,
+                Time: <g><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></g>,
+                Users: <g><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></g>
+            };
+            return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{icons[name]}</svg>;
+        };
+
+        // --- INITIAL DATA ---
+        const initialUsersData = [
+            { id: 1, username: 'admin', password: '123', role: 'super_admin', unit: 'Global', name: 'Super Administrator' },
+            { id: 2, username: 'igd', password: '123', role: 'unit_admin', unit: 'IGD', name: 'Admin Unit IGD' },
+            { id: 3, username: 'poli_umum', password: '123', role: 'unit_admin', unit: 'Poli Umum', name: 'Admin Poli Umum' },
+            { id: 4, username: 'poli_tht', password: '123', role: 'unit_admin', unit: 'Poli THT', name: 'Admin Poli THT' },
+            { id: 5, username: 'poli_penyakit_dalam', password: '123', role: 'unit_admin', unit: 'Poli Penyakit Dalam', name: 'Admin Penyakit Dalam' },
+            { id: 6, username: 'poli_fisioterapi', password: '123', role: 'unit_admin', unit: 'Poli Fisioterapi', name: 'Admin Fisioterapi' },
+            { id: 7, username: 'poli_psikologi', password: '123', role: 'unit_admin', unit: 'Poli Psikologi', name: 'Admin Psikologi' },
+            { id: 8, username: 'poli_tb', password: '123', role: 'unit_admin', unit: 'Poli TB', name: 'Admin Poli TB' },
+            { id: 9, username: 'poli_vct', password: '123', role: 'unit_admin', unit: 'Poli VCT', name: 'Admin Poli VCT' },
+            { id: 10, username: 'poli_mata', password: '123', role: 'unit_admin', unit: 'Poli Mata', name: 'Admin Poli Mata' },
+            { id: 11, username: 'poli_kandungan', password: '123', role: 'unit_admin', unit: 'Poli Kandungan', name: 'Admin Poli Kandungan' },
+            { id: 12, username: 'poli_bedah', password: '123', role: 'unit_admin', unit: 'Poli Bedah', name: 'Admin Poli Bedah' },
+            { id: 13, username: 'poli_anak', password: '123', role: 'unit_admin', unit: 'Poli Anak', name: 'Admin Poli Anak' },
+            { id: 14, username: 'poli_gigi', password: '123', role: 'unit_admin', unit: 'Poli Gigi', name: 'Admin Poli Gigi' },
+            { id: 15, username: 'icu', password: '123', role: 'unit_admin', unit: 'ICU', name: 'Admin ICU' },
+            { id: 16, username: 'nicu', password: '123', role: 'unit_admin', unit: 'NICU', name: 'Admin NICU' },
+            { id: 17, username: 'picu', password: '123', role: 'unit_admin', unit: 'PICU', name: 'Admin PICU' },
+            { id: 18, username: 'hemodialisa', password: '123', role: 'unit_admin', unit: 'Hemodialisa', name: 'Admin Hemodialisa' },
+            { id: 19, username: 'ruang_operasi', password: '123', role: 'unit_admin', unit: 'Ruang Operasi', name: 'Admin Ruang Operasi' },
+            // { id: 20, username: 'rawat_inap', password: '123', role: 'unit_admin', unit: 'Rawat Inap', name: 'Admin Rawat Inap' }, // REMOVED
+            { id: 21, username: 'alamanda', password: '123', role: 'unit_admin', unit: 'ALAMANDA', name: 'Admin ALAMANDA' },
+            { id: 22, username: 'aglonema', password: '123', role: 'unit_admin', unit: 'AGLONEMA', name: 'Admin AGLONEMA' },
+            { id: 23, username: 'azalea', password: '123', role: 'unit_admin', unit: 'AZALEA', name: 'Admin AZALEA' },
+            { id: 24, username: 'aster', password: '123', role: 'unit_admin', unit: 'ASTER', name: 'Admin ASTER' },
+            { id: 25, username: 'anggrek', password: '123', role: 'unit_admin', unit: 'ANGGREK', name: 'Admin ANGGREK' },
+            { id: 26, username: 'ponek', password: '123', role: 'unit_admin', unit: 'PONEK', name: 'Admin PONEK' },
+            { id: 27, username: 'gudang_farmasi', password: '123', role: 'unit_admin', unit: 'Gudang Farmasi', name: 'Admin Gudang Farmasi' },
+            { id: 28, username: 'apotik_jalan', password: '123', role: 'unit_admin', unit: 'Apotik Rawat Jalan', name: 'Admin Apotik Jalan' },
+            { id: 29, username: 'apotik_inap', password: '123', role: 'unit_admin', unit: 'Apotik Rawat Inap', name: 'Admin Apotik Inap' },
+            { id: 30, username: 'laboratorium', password: '123', role: 'unit_admin', unit: 'Laboratorium', name: 'Admin Laboratorium' },
+            { id: 31, username: 'radiologi', password: '123', role: 'unit_admin', unit: 'Radiologi', name: 'Admin Radiologi' },
+            { id: 32, username: 'utd', password: '123', role: 'unit_admin', unit: 'UTD', name: 'Admin UTD (Darah)' },
+            { id: 33, username: 'gizi', password: '123', role: 'unit_admin', unit: 'Instalasi Gizi', name: 'Admin Gizi' },
+            { id: 34, username: 'forensik', password: '123', role: 'unit_admin', unit: 'Forensik', name: 'Admin Forensik' },
+            { id: 35, username: 'cssd', password: '123', role: 'unit_admin', unit: 'CSSD', name: 'Admin CSSD' },
+            { id: 36, username: 'rekam_medik', password: '123', role: 'unit_admin', unit: 'Rekam Medik', name: 'Admin Rekam Medik' },
+            { id: 37, username: 'ipsrs', password: '123', role: 'unit_admin', unit: 'IPSRS', name: 'Admin IPSRS' },
+            { id: 38, username: 'bpjs', password: '123', role: 'unit_admin', unit: 'BPJS', name: 'Admin BPJS' },
+            { id: 39, username: 'sekretariat', password: '123', role: 'unit_admin', unit: 'Sekretariat', name: 'Admin Sekretariat' },
+        ];
+
+        const initialInventory = [
+            { id: 1, nama: "USG 4 Dimensi", kode: "MED-001", merk: "GE Healthcare", tahun: 2021, lokasi: "Poli Kandungan", status: "Baik", jumlah: 1, nextKalibrasi: "2023-10-01" },
+            { id: 2, nama: "Bed Pasien", kode: "NON-023", merk: "Paramount", tahun: 2020, lokasi: "IGD", status: "Perbaikan", jumlah: 2, nextKalibrasi: "-" },
+            { id: 3, nama: "Patient Monitor", kode: "MED-004", merk: "Philips", tahun: 2022, lokasi: "ICU", status: "Baik", jumlah: 5, nextKalibrasi: "2025-12-01" },
+            { id: 4, nama: "Infus Pump", kode: "MED-005", merk: "Terumo", tahun: 2023, lokasi: "IGD", status: "Rusak", jumlah: 1, nextKalibrasi: "-" },
+            { id: 5, nama: "Tensi Digital", kode: "MED-006", merk: "Omron", tahun: 2023, lokasi: "IGD", status: "Baik", jumlah: 2, nextKalibrasi: "-" },
+            { id: 6, nama: "Kursi Tunggu", kode: "NON-001", merk: "Chitose", tahun: 2020, lokasi: "Poli Bedah", status: "Baik", jumlah: 10, nextKalibrasi: "-" }
+        ];
+
+        // --- COMPONENTS ---
+        const LoginScreen = ({ onLogin, users }) => {
+            const [u, setU] = useState(''); 
+            const [p, setP] = useState('');
+            const [error, setError] = useState('');
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const user = users.find(x => x.username === u && x.password === p);
+                if (user) {
+                    setError('');
+                    onLogin(user);
+                } else {
+                    setError('Username atau Password salah! Silakan coba lagi.');
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-brand-600 p-4">
+                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center text-white fade-in">
+                        <div className="mb-8"><h1 className="text-5xl font-extrabold tracking-tighter mb-2 drop-shadow-md">SIMAS</h1><p className="text-blue-100 text-xs font-medium tracking-wide uppercase leading-relaxed">SISTEM INVENTARIS MANAJEMEN ASET<br/>RSUD LEBONG</p></div>
+                        
+                        {error && (
+                            <div className="mb-6 p-3 bg-rose-500/90 border border-rose-400 rounded-xl text-xs font-bold text-white shadow-lg animate-bounce">
+                                <div className="flex items-center justify-center gap-2">
+                                    <Icon name="Alert"/> {error}
+                                </div>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleLogin} className="space-y-5">
+                            <input value={u} onChange={e=>setU(e.target.value)} className="w-full bg-white/20 border border-white/10 p-3 pl-4 rounded-xl focus:ring-2 focus:ring-sky-400 outline-none text-white placeholder-blue-200 text-center font-bold" placeholder="Username" />
+                            <input type="password" value={p} onChange={e=>setP(e.target.value)} className="w-full bg-black/20 border border-white/10 p-3 pl-4 rounded-xl focus:ring-2 focus:ring-sky-400 outline-none text-white placeholder-blue-200 text-center font-bold" placeholder="Password" />
+                            <button className="w-full bg-white text-blue-800 py-3 rounded-xl font-bold text-lg hover:bg-blue-50 hover:shadow-lg hover:scale-[1.02] transition-all duration-200">MASUK</button>
+                        </form>
+                        <div className="mt-8 text-xs text-blue-200 opacity-60">&copy; 2025 IT RSUD Lebong. v1.</div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [tab, setTab] = useState('dashboard');
+            
+            // STATE DATA BARANG
+            const [inventory, setInventory] = useState(() => {
+                try { const savedData = localStorage.getItem('simas_rsud_data'); return savedData ? JSON.parse(savedData) : initialInventory; } catch (e) { return initialInventory; }
+            });
+            
+            // STATE DATA USERS
+            const [usersList, setUsersList] = useState(() => {
+                try { const savedUsers = localStorage.getItem('simas_rsud_users'); return savedUsers ? JSON.parse(savedUsers) : initialUsersData; } catch (e) { return initialUsersData; }
+            });
+
+            useEffect(() => { localStorage.setItem('simas_rsud_data', JSON.stringify(inventory)); }, [inventory]);
+            useEffect(() => { localStorage.setItem('simas_rsud_users', JSON.stringify(usersList)); }, [usersList]);
+
+            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+            const [showModal, setShowModal] = useState(false);
+            const [showLogoutModal, setShowLogoutModal] = useState(false);
+            const [showUserModal, setShowUserModal] = useState(false);
+            const [editItem, setEditItem] = useState(null);
+            const [editUser, setEditUser] = useState(null);
+            const [filterUnit, setFilterUnit] = useState('All'); 
+            const [searchTerm, setSearchTerm] = useState('');
+
+            // Derive dynamic units from users list (excluding admin)
+            const dynamicUnits = useMemo(() => usersList.filter(u => u.role !== 'super_admin').map(u => u.unit).sort(), [usersList]);
+
+            const myData = useMemo(() => { if (!user) return []; if (user.role === 'unit_admin') return inventory.filter(i => i.lokasi === user.unit); return inventory; }, [inventory, user]);
+            const filteredTableData = myData.filter(item => item.nama.toLowerCase().includes(searchTerm.toLowerCase()) || item.kode.toLowerCase().includes(searchTerm.toLowerCase()));
+
+            const aggregatedRecap = useMemo(() => {
+                const groups = {}; let sourceData = [];
+                if (user && user.role === 'super_admin') { sourceData = filterUnit === 'All' ? inventory : inventory.filter(i => i.lokasi === filterUnit); } else if (user && user.role === 'unit_admin') { sourceData = inventory.filter(i => i.lokasi === user.unit); }
+                sourceData.forEach(item => {
+                    const key = `${item.nama.trim().toUpperCase()}|${item.merk.trim().toUpperCase()}|${item.tahun}`;
+                    if (!groups[key]) groups[key] = { nama: item.nama, merk: item.merk, tahun: item.tahun, kalibrasi: item.nextKalibrasi, jumlahTotal: 0, baik: 0, rusakRingan: 0, rusakBerat: 0 };
+                    const qty = parseInt(item.jumlah || 1); groups[key].jumlahTotal += qty; const status = (item.status || 'Baik').toLowerCase();
+                    if (status === 'baik') groups[key].baik += qty; else if (status === 'perbaikan') groups[key].rusakRingan += qty; else if (status === 'rusak') groups[key].rusakBerat += qty;
+                });
+                return Object.values(groups);
+            }, [inventory, user, filterUnit]);
+
+            const alerts = useMemo(() => {
+                const damaged = myData.filter(i => i.status !== 'Baik');
+                const calibration = myData.filter(i => { if(i.nextKalibrasi === '-' || !i.nextKalibrasi) return false; const today = new Date(); const next = new Date(i.nextKalibrasi); return Math.ceil((next - today) / (1000 * 60 * 60 * 24)) < 30; });
+                return { damaged, calibration };
+            }, [myData]);
+
+            // CRUD ASET
+            const handleSave = (e) => {
+                e.preventDefault(); const fd = new FormData(e.target); const data = Object.fromEntries(fd.entries());
+                data.tahun = parseInt(data.tahun) || new Date().getFullYear(); data.jumlah = parseInt(data.jumlah);
+                if (data.jumlah < 1) return alert("Jumlah tidak boleh < 1"); if (!data.nama.trim() || !data.kode.trim()) return alert("Nama dan Kode wajib diisi");
+                if (user.role === 'unit_admin') data.lokasi = user.unit; if (!data.nextKalibrasi) data.nextKalibrasi = "-";
+                if (editItem) setInventory(inventory.map(i => i.id === editItem.id ? { ...data, id: editItem.id } : i)); else setInventory([...inventory, { ...data, id: Date.now() }]);
+                setShowModal(false); setEditItem(null);
+            };
+            const handleDelete = (id) => { if(confirm("Hapus data ini permanen?")) setInventory(inventory.filter(i => i.id !== id)); };
+
+            // CRUD USER
+            const handleSaveUser = (e) => {
+                e.preventDefault(); const fd = new FormData(e.target); const data = Object.fromEntries(fd.entries());
+                if (!data.username || !data.password || !data.unit) return alert("Semua kolom wajib diisi!");
+                
+                if (editUser) {
+                    setUsersList(usersList.map(u => u.id === editUser.id ? { ...editUser, ...data, name: 'Admin ' + data.unit } : u));
+                } else {
+                    // ADD NEW USER
+                    const newUser = {
+                        id: Date.now(),
+                        username: data.username,
+                        password: data.password,
+                        unit: data.unit,
+                        role: 'unit_admin',
+                        name: 'Admin ' + data.unit
+                    };
+                    setUsersList([...usersList, newUser]);
+                }
+                setShowUserModal(false); setEditUser(null);
+            };
+
+            const handleDeleteUser = (id) => {
+                if (confirm("Hapus akses unit ini? Data barang yang terkait unit ini tidak akan terhapus, namun akun tidak bisa login lagi.")) {
+                    setUsersList(usersList.filter(u => u.id !== id));
+                }
+            };
+
+            const downloadExcel = () => {
+                const headers = ["NO", "NAMA BARANG", "MERK", "TAHUN", "JUMLAH", "BAIK", "RUSAK RINGAN", "RUSAK BERAT", "KET (KALIBRASI)"];
+                const rows = aggregatedRecap.map((item, idx) => [idx + 1, `"${item.nama}"`, `"${item.merk}"`, item.tahun, item.jumlahTotal, item.baik, item.rusakRingan, item.rusakBerat, `"${item.kalibrasi}"`]);
+                const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = `Rekap_SIMAS_${filterUnit}_${new Date().toLocaleDateString()}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            };
+            const downloadPDF = () => {
+                const { jsPDF } = window.jspdf; if (!jsPDF) return alert("PDF library belum siap.");
+                const doc = new jsPDF('l', 'mm', 'a4'); const pageWidth = doc.internal.pageSize.getWidth(); const centerX = pageWidth / 2;
+                doc.setFont("times", "bold"); doc.setFontSize(14); doc.text("PEMERINTAH KABUPATEN LEBONG", centerX, 15, { align: "center" });
+                doc.setFontSize(18); doc.text("RUMAH SAKIT UMUM DAERAH", centerX, 23, { align: "center" });
+                doc.setFont("times", "normal"); doc.setFontSize(10); doc.text("Jl. Muara Aman-Curup Desa Muning Agung Kec. Lebong Sakti Kab Lebong 39163", centerX, 30, { align: "center" });
+                doc.setFont("times", "italic"); doc.text("Email : rsudlebong20@gmail.com", centerX, 35, { align: "center" });
+                doc.setLineWidth(1); doc.line(10, 39, pageWidth - 10, 39); doc.setLineWidth(0.5); doc.line(10, 40, pageWidth - 10, 40);
+                doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.text("KARTU INVENTARIS RUANGAN (KIR)", centerX, 50, { align: "center" });
+                doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(`NAMA RUANGAN : ${user.role === 'super_admin' ? (filterUnit === 'All' ? 'SELURUH RUANGAN (GLOBAL)' : filterUnit.toUpperCase()) : user.unit.toUpperCase()}`, 14, 60);
+                const tableColumn = [["NO", "NAMA BARANG", "MERK", "THN", "JML", "KONDISI", "", "", "KET (KALIBRASI)"], ["", "", "", "", "", "B", "RR", "RB", ""]];
+                const tableRows = aggregatedRecap.map((item, i) => [i + 1, item.nama, item.merk, item.tahun, item.jumlahTotal, item.baik || '-', item.rusakRingan || '-', item.rusakBerat || '-', item.kalibrasi !== '-' ? item.kalibrasi : '']);
+                doc.autoTable({ head: tableColumn, body: tableRows, startY: 65, theme: 'grid', styles: { fontSize: 9, cellPadding: 2, lineColor: [0,0,0], lineWidth: 0.1 }, headStyles: { fillColor: [224, 242, 254], textColor: [0,0,0], fontStyle: 'bold', halign: 'center' }, columnStyles: { 0:{halign:'center',cellWidth:10}, 3:{halign:'center',cellWidth:15}, 4:{halign:'center',cellWidth:15}, 5:{halign:'center'}, 6:{halign:'center'}, 7:{halign:'center'}, 8:{fontStyle:'italic'} }, didParseCell: function(data) { if(data.section === 'head' && data.row.index === 0 && data.column.index === 5) data.cell.colSpan = 3; } });
+                const finalY = doc.lastAutoTable.finalY + 20; if (finalY > 180) doc.addPage();
+                doc.setFont("times", "normal"); doc.text(`Lebong, ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}`, pageWidth - 50, finalY, { align: "center" });
+                doc.text("Penanggung Jawab Ruangan", pageWidth - 50, finalY + 5, { align: "center" }); doc.text("( ........................................... )", pageWidth - 50, finalY + 25, { align: "center" });
+                doc.save(`Laporan_SIMAS_${filterUnit}_${new Date().toISOString().slice(0,10)}.pdf`);
+            };
+            const handleBackup = () => { const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([JSON.stringify(inventory, null, 2)], { type: "application/json" })); link.download = `BACKUP_SIMAS_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
+            const handleRestore = (e) => { const file = e.target.files[0]; if (!file || !confirm("Restore akan menimpa data saat ini.")) return; const reader = new FileReader(); reader.onload = (ev) => { try { const json = JSON.parse(ev.target.result); Array.isArray(json) ? (setInventory(json), alert("Data dipulihkan!")) : alert("Format salah!"); } catch { alert("Gagal membaca file."); } }; reader.readAsText(file); };
+
+            // --- VIEWS ---
+            const DashboardView = () => {
+                const hasAlerts = alerts.damaged.length > 0 || alerts.calibration.length > 0;
+                return (
+                    <div className="space-y-8 fade-in">
+                        <div className="bg-gradient-to-r from-brand-700 to-sky-500 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden"><div className="relative z-10"><h2 className="text-3xl font-extrabold mb-1">Selamat Datang, {user.name}! 👋</h2><p className="opacity-90 font-light">Sistem Informasi Manajemen Aset Terintegrasi <b>{user.role === 'super_admin' ? 'Seluruh Rumah Sakit' : `Unit ${user.unit}`}</b>.</p></div></div>
+                        
+                        {hasAlerts && (
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-pulse-once">
+                                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <span className="p-2 bg-amber-100 text-amber-600 rounded-lg animate-bounce"><Icon name="Bell"/></span>
+                                    Pemberitahuan Penting
+                                </h3>
+                                <div className="space-y-3">
+                                    {alerts.calibration.length > 0 && (
+                                        <div className="p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                                            <div className="flex gap-3">
+                                                <div className="text-amber-500 mt-1"><Icon name="Time"/></div>
+                                                <div>
+                                                    <h4 className="font-bold text-amber-800">Jadwal Kalibrasi Dekat</h4>
+                                                    <p className="text-sm text-amber-700">Terdapat <span className="font-bold">{alerts.calibration.length} alat</span> yang perlu dikalibrasi dalam waktu dekat (kurang dari 30 hari).</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => { setSearchTerm(''); setFilterUnit('All'); setTab('inventory'); }} className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm font-bold hover:bg-amber-200 transition whitespace-nowrap">Lihat Detail</button>
+                                        </div>
+                                    )}
+                                    {alerts.damaged.length > 0 && (
+                                        <div className="p-4 bg-rose-50 border-l-4 border-rose-500 rounded-r-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                                            <div className="flex gap-3">
+                                                <div className="text-rose-500 mt-1"><Icon name="Alert"/></div>
+                                                <div>
+                                                    <h4 className="font-bold text-rose-800">Aset Rusak / Perbaikan</h4>
+                                                    <p className="text-sm text-rose-700">Terdapat <span className="font-bold">{alerts.damaged.length} aset</span> yang dilaporkan dalam kondisi rusak atau sedang diperbaiki.</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => { setSearchTerm(''); setFilterUnit('All'); setTab('inventory'); }} className="px-4 py-2 bg-rose-100 text-rose-700 rounded-lg text-sm font-bold hover:bg-rose-200 transition whitespace-nowrap">Lihat Detail</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl shadow-lg transform hover:scale-[1.02] transition border-none text-white"><div className="flex mb-4"><div className="p-3 bg-white/20 backdrop-blur-sm text-white rounded-lg"><Icon name="Box"/></div></div><h3 className="text-4xl font-extrabold">{myData.length}</h3><p className="font-medium text-sm text-blue-100">Total Item Aset</p></div>
+                            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 rounded-xl shadow-lg transform hover:scale-[1.02] transition border-none text-white"><div className="flex mb-4"><div className="p-3 bg-white/20 backdrop-blur-sm text-white rounded-lg"><Icon name="Check"/></div></div><h3 className="text-4xl font-extrabold">{myData.filter(i=>i.status==='Baik').reduce((a,b)=>a+(parseInt(b.jumlah)||1),0)}</h3><p className="font-medium text-sm text-emerald-100">Unit Kondisi Baik</p></div>
+                            <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-6 rounded-xl shadow-lg transform hover:scale-[1.02] transition border-none text-white"><div className="flex mb-4"><div className="p-3 bg-white/20 backdrop-blur-sm text-white rounded-lg"><Icon name="Alert"/></div></div><h3 className="text-4xl font-extrabold">{myData.filter(i=>i.status!=='Baik').reduce((a,b)=>a+(parseInt(b.jumlah)||1),0)}</h3><p className="font-medium text-sm text-rose-100">Unit Rusak</p></div>
+                        </div>
+                    </div>
+                );
+            };
+            const InventoryView = () => (
+                <div className="space-y-6 fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100"><div className="relative w-full md:w-1/3"><span className="absolute left-3 top-3 text-slate-400"><Icon name="Search"/></span><input type="text" placeholder="Cari aset..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div><button onClick={() => { setEditItem(null); setShowModal(true); }} className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2 transition"><Icon name="Plus"/> Tambah Data</button></div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold uppercase text-xs"><tr><th className="p-4 rounded-tl-xl">Nama Barang</th><th className="p-4">Merk / Tahun</th><th className="p-4 text-center">Jml</th><th className="p-4">Lokasi</th><th className="p-4">Kondisi</th><th className="p-4">Kalibrasi</th><th className="p-4 text-center rounded-tr-xl">Aksi</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredTableData.map(i => (<tr key={i.id} className="hover:bg-blue-50 transition"><td className="p-4 font-bold text-slate-700">{i.nama}<div className="text-xs text-slate-400 font-mono mt-1">{i.kode}</div></td><td className="p-4">{i.merk}<br/><span className="text-xs text-slate-400">{i.tahun}</span></td><td className="p-4 text-center"><span className="bg-slate-100 text-slate-800 font-bold px-3 py-1 rounded-full">{i.jumlah}</span></td><td className="p-4 text-slate-600">{i.lokasi}</td><td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${i.status==='Baik' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{i.status}</span></td><td className={`p-4 font-mono text-xs ${alerts.calibration.some(c => c.id === i.id) ? 'text-amber-600 font-bold' : ''}`}>{i.nextKalibrasi}</td><td className="p-4 flex justify-center gap-2"><button onClick={()=>{setEditItem(i); setShowModal(true);}} className="p-2 text-blue-600 bg-blue-50 rounded hover:bg-blue-100"><Icon name="Edit"/></button><button onClick={()=>handleDelete(i.id)} className="p-2 text-rose-600 bg-rose-50 rounded hover:bg-rose-100"><Icon name="Trash"/></button></td></tr>))}{filteredTableData.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-400 italic">Data tidak ditemukan.</td></tr>}</tbody></table></div></div>
+                </div>
+            );
+            const ReportsView = () => (
+                <div className="space-y-6 fade-in">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 no-print flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-4 w-full md:w-auto"><div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Icon name="Table"/></div><h2 className="font-bold text-lg text-slate-800">Laporan Rekapitulasi</h2></div>
+                        {user.role === 'super_admin' && (<div className="flex-1 max-w-xs"><select value={filterUnit} onChange={(e)=>setFilterUnit(e.target.value)} className="w-full border-2 border-slate-200 p-2.5 rounded-lg bg-slate-50 font-bold text-slate-700 outline-none">
+                            <option value="All">Semua Ruangan</option>
+                            {dynamicUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select></div>)}
+                        <div className="flex gap-2"><button onClick={downloadPDF} className="bg-rose-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex gap-2 items-center hover:bg-rose-700 shadow-md"><Icon name="FileText"/> PDF</button><button onClick={downloadExcel} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex gap-2 items-center hover:bg-emerald-700 shadow-md"><Icon name="Download"/> Excel</button><button onClick={()=>window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold text-sm flex gap-2 items-center hover:bg-slate-900 shadow-md"><Icon name="Printer"/> Cetak</button></div>
+                    </div>
+                    <div className="bg-white p-10 shadow-xl print-area min-h-screen border border-slate-200">
+                        {/* KOP SURAT WEB PREVIEW (TANPA LOGO) */}
+                        <div className="text-center border-b-4 border-double border-black pb-4 mb-6 font-serif text-slate-900 relative">
+                            <h3 className="text-lg font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN LEBONG</h3>
+                            <h1 className="text-2xl font-extrabold uppercase tracking-wider mb-1">RUMAH SAKIT UMUM DAERAH</h1>
+                            <p className="text-sm italic">Jl. Muara Aman-Curup Desa Muning Agung Kec. Lebong Sakti Kab Lebong 39163</p>
+                            <p className="text-sm italic">Email : rsudlebong20@gmail.com</p>
+                        </div>
+                        <div className="mb-6 font-bold text-sm uppercase leading-relaxed font-sans"><div className="text-center text-xl underline mb-4">KARTU INVENTARIS RUANGAN (KIR)</div><div className="flex flex-col gap-1"><div className="flex"><div className="w-40">NAMA RUANGAN</div><div>: {user.role === 'super_admin' ? (filterUnit === 'All' ? 'SELURUH RUANGAN (GLOBAL)' : filterUnit.toUpperCase()) : user.unit.toUpperCase()}</div></div></div></div>
+                        <table className="doc-table"><thead><tr><th rowSpan="2" style={{width:'40px'}}>NO</th><th rowSpan="2">NAMA BARANG</th><th rowSpan="2">MERK</th><th rowSpan="2">TAHUN<br/>PENGADAAN</th><th rowSpan="2">JUMLAH</th><th colSpan="3">KONDISI</th><th rowSpan="2">KETERANGAN<br/>(TGL KALIBRASI)</th></tr><tr><th style={{fontSize:'9pt'}}>BAIK</th><th style={{fontSize:'9pt'}}>RUSAK<br/>RINGAN</th><th style={{fontSize:'9pt'}}>RUSAK<br/>BERAT</th></tr></thead><tbody>{aggregatedRecap.map((item, idx) => (<tr key={idx}><td>{idx + 1}</td><td className="text-left font-bold">{item.nama}</td><td>{item.merk}</td><td>{item.tahun}</td><td style={{fontWeight:'bold'}}>{item.jumlahTotal}</td><td>{item.baik || ''}</td><td>{item.rusakRingan || ''}</td><td>{item.rusakBerat || ''}</td><td style={{fontFamily:'monospace', fontSize:'9pt'}}>{item.kalibrasi !== '-' ? item.kalibrasi : ''}</td></tr>))}{aggregatedRecap.length === 0 && <tr><td colSpan="9" className="p-4 italic">Belum ada data.</td></tr>}</tbody></table>
+                    </div>
+                </div>
+            );
+            const AdminToolsView = () => (
+                <div className="space-y-6 fade-in">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="p-3 bg-slate-100 text-slate-600 rounded-xl"><Icon name="Settings"/></div>
+                            <div><h2 className="font-bold text-lg text-slate-800">Pengaturan Administrator</h2><p className="text-slate-500 text-sm">Kelola data sistem dan konfigurasi.</p></div>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-2 gap-6 mb-8">
+                            <div className="border border-slate-200 rounded-xl p-5 hover:border-blue-400 transition cursor-pointer bg-slate-50" onClick={handleBackup}>
+                                <div className="flex items-center gap-3 mb-2 text-emerald-600 font-bold"><Icon name="Download"/> Backup Database</div>
+                                <p className="text-sm text-slate-500">Unduh data inventaris & user ke JSON.</p>
+                            </div>
+                            <label className="border border-slate-200 rounded-xl p-5 hover:border-amber-400 transition cursor-pointer bg-slate-50 relative block">
+                                <div className="flex items-center gap-3 mb-2 text-amber-600 font-bold"><Icon name="Upload"/> Restore Database</div>
+                                <p className="text-sm text-slate-500">Pulihkan data dari file backup JSON.</p>
+                                <input type="file" accept=".json" onChange={handleRestore} className="hidden" />
+                            </label>
+                        </div>
+
+                        <div className="border-t pt-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Icon name="Users"/> Manajemen Akses & Ruangan</h3>
+                                <button onClick={()=>{setEditUser(null); setShowUserModal(true);}} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition"><Icon name="Plus"/> Tambah Unit</button>
+                            </div>
+                            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 text-slate-700 font-bold"><tr><th className="p-3">Username</th><th className="p-3">Nama Ruangan (Unit)</th><th className="p-3">Password</th><th className="p-3 text-center">Aksi</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {usersList.filter(u => u.role !== 'super_admin').map(u => (
+                                            <tr key={u.id} className="hover:bg-slate-50">
+                                                <td className="p-3 font-mono font-bold">{u.username}</td>
+                                                <td className="p-3">{u.unit}</td>
+                                                <td className="p-3 font-mono text-slate-400">****</td>
+                                                <td className="p-3 text-center flex justify-center gap-2">
+                                                    <button onClick={()=>{setEditUser(u); setShowUserModal(true);}} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition"><Icon name="Edit"/></button>
+                                                    <button onClick={()=>handleDeleteUser(u.id)} className="text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition"><Icon name="Trash"/></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            if (!user) return <LoginScreen onLogin={setUser} users={usersList} />;
+
+            return (
+                <div className="flex min-h-screen bg-slate-50 relative">
+                    {mobileMenuOpen && <div className="fixed inset-0 z-20 bg-black/50 md:hidden" onClick={()=>setMobileMenuOpen(false)}></div>}
+                    <aside className={`fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static`}>
+                        <div className="p-8 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">SM</div><h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">SIMAS</h1></div><button className="md:hidden text-slate-400" onClick={()=>setMobileMenuOpen(false)}><Icon name="X"/></button></div>
+                        <nav className="px-4 space-y-2 flex-1">
+                            <button onClick={()=>{setTab('dashboard'); setMobileMenuOpen(false)}} className={`w-full flex gap-3 px-4 py-3.5 rounded-xl items-center font-bold transition-all ${tab==='dashboard'?'bg-blue-100 text-blue-700 shadow-sm ring-1 ring-blue-200':'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><Icon name="Dashboard"/> Dashboard</button>
+                            <button onClick={()=>{setTab('inventory'); setMobileMenuOpen(false)}} className={`w-full flex gap-3 px-4 py-3.5 rounded-xl items-center font-bold transition-all ${tab==='inventory'?'bg-emerald-100 text-emerald-700 shadow-sm ring-1 ring-emerald-200':'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><Icon name="Box"/> Data Inventaris</button>
+                            <button onClick={()=>{setTab('reports'); setMobileMenuOpen(false)}} className={`w-full flex gap-3 px-4 py-3.5 rounded-xl items-center font-bold transition-all ${tab==='reports'?'bg-violet-100 text-violet-700 shadow-sm ring-1 ring-violet-200':'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><Icon name="Table"/> Laporan Rekap</button>
+                            {user.role === 'super_admin' && (
+                                <button onClick={()=>{setTab('admin'); setMobileMenuOpen(false)}} className={`w-full flex gap-3 px-4 py-3.5 rounded-xl items-center font-bold transition-all ${tab==='admin'?'bg-slate-800 text-white shadow-md':'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}>
+                                    <Icon name="Settings"/> Pengaturan Admin
+                                </button>
+                            )}
+                        </nav>
+                        <div className="p-6"><button onClick={() => setShowLogoutModal(true)} className="w-full flex gap-3 px-4 py-3 rounded-xl items-center text-rose-500 font-bold hover:bg-rose-50 transition border border-transparent hover:border-rose-100"><Icon name="LogOut"/> Keluar</button></div>
+                    </aside>
+                    <main className="flex-1 flex flex-col h-screen overflow-hidden">
+                        <header className="bg-white p-4 flex items-center justify-between border-b border-slate-200 md:hidden shadow-sm z-10"><div className="font-bold text-lg text-blue-600">SIMAS MOBILE</div><button onClick={()=>setMobileMenuOpen(true)} className="text-slate-600 p-2"><Icon name="Menu"/></button></header>
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8">{tab === 'dashboard' && <DashboardView />}{tab === 'inventory' && <InventoryView />}{tab === 'reports' && <ReportsView />}{tab === 'admin' && <AdminToolsView />}</div>
+                    </main>
+                    {showModal && (
+                        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in">
+                            <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]"><h3 className="font-bold text-2xl mb-6 text-slate-800">{editItem ? 'Edit Aset' : 'Tambah Aset Baru'}</h3>
+                                <form onSubmit={handleSave} className="space-y-4">
+                                    <input name="nama" defaultValue={editItem?.nama} placeholder="Nama Barang" className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none font-bold text-slate-700"/>
+                                    <div className="grid grid-cols-2 gap-4"><input name="kode" defaultValue={editItem?.kode} placeholder="Kode" className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none"/><input name="merk" defaultValue={editItem?.merk} placeholder="Merk" className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none"/><input name="tahun" type="number" defaultValue={editItem?.tahun || new Date().getFullYear()} placeholder="Tahun" className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none"/><input name="jumlah" type="number" min="1" defaultValue={editItem?.jumlah || 1} placeholder="Jml" className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none font-bold text-blue-600"/></div>
+                                    <select name="status" defaultValue={editItem?.status} className="w-full border-2 border-slate-100 p-3 rounded-lg bg-white outline-none"><option value="Baik">Baik</option><option value="Perbaikan">Rusak Ringan</option><option value="Rusak">Rusak Berat</option></select>
+                                    <select name="lokasi" defaultValue={editItem?.lokasi} disabled={user.role==='unit_admin'} className="w-full border-2 border-slate-100 p-3 rounded-lg bg-white outline-none disabled:bg-slate-50">
+                                        {user.role === 'unit_admin' ? <option value={user.unit}>{user.unit}</option> : (
+                                            <>
+                                                {dynamicUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                                            </>
+                                        )}
+                                    </select>
+                                    <div><label className="text-xs font-bold text-slate-400">Tgl Kalibrasi (Opsional)</label><input type="date" name="nextKalibrasi" defaultValue={editItem?.nextKalibrasi} className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none"/></div>
+                                    <div className="flex justify-end gap-3 mt-8"><button type="button" onClick={()=>{setShowModal(false); setEditItem(null)}} className="px-6 py-3 rounded-lg font-bold text-slate-500 hover:bg-slate-50">Batal</button><button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg">Simpan</button></div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                    {showUserModal && (
+                        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in">
+                            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"><h3 className="font-bold text-2xl mb-6 text-slate-800">{editUser ? 'Edit Akses Pengguna' : 'Tambah Unit Baru'}</h3>
+                                <form onSubmit={handleSaveUser} className="space-y-4">
+                                    <div><label className="text-xs font-bold text-slate-400">Username Login</label><input name="username" defaultValue={editUser?.username} className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none font-bold text-slate-700" required /></div>
+                                    <div><label className="text-xs font-bold text-slate-400">Password</label><input name="password" defaultValue={editUser?.password} className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none font-mono" required /></div>
+                                    <div><label className="text-xs font-bold text-slate-400">Nama Ruangan (Unit)</label><input name="unit" defaultValue={editUser?.unit} className="w-full border-2 border-slate-100 p-3 rounded-lg outline-none font-bold text-blue-600" required /></div>
+                                    <div className="flex justify-end gap-3 mt-8"><button type="button" onClick={()=>{setShowUserModal(false); setEditUser(null)}} className="px-6 py-3 rounded-lg font-bold text-slate-500 hover:bg-slate-50">Batal</button><button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg">Simpan</button></div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                    {showLogoutModal && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in">
+                            <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center">
+                                <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Icon name="LogOut" className="w-8 h-8" />
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">Konfirmasi Keluar</h3>
+                                <p className="text-slate-500 mb-6">Apakah Anda yakin ingin keluar dari aplikasi?</p>
+                                <div className="flex gap-3 justify-center">
+                                    <button onClick={() => setShowLogoutModal(false)} className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition">Batal</button>
+                                    <button onClick={() => { setUser(null); setShowLogoutModal(false); setTab('dashboard'); }} className="px-6 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 shadow-lg transition">Ya, Keluar</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        const root = ReactDOM.createRoot(document.getElementById('root')); root.render(<App />);
+    </script>
+</body>
+</html>
