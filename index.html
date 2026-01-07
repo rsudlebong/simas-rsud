@@ -102,7 +102,19 @@
         const { useState, useEffect, useMemo, useRef } = React;
 
         // --- CONFIG & DATA ---
-        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'simas-rsud-default';
+        // Konfigurasi Firebase Milik Anda (Akan digunakan saat di-deploy ke hosting sendiri)
+        const userFirebaseConfig = {
+            apiKey: "AIzaSyCcLX-hr3_d98l12EtDpOnFre94cmT-0A0",
+            authDomain: "simas-rsud-lebong.firebaseapp.com",
+            projectId: "simas-rsud-lebong",
+            storageBucket: "simas-rsud-lebong.firebasestorage.app",
+            messagingSenderId: "943879984194",
+            appId: "1:943879984194:web:664242c532a03f1a9d09db",
+            measurementId: "G-1SBB6S5M9R"
+        };
+        
+        // Gunakan ID dari environment jika ada, jika tidak gunakan default proyek Anda
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'simas-rsud-lebong-data'; 
         const COLLECTION_INVENTORY = 'inventory';
         const COLLECTION_USERS = 'app_users';
         
@@ -312,9 +324,7 @@
                         else if (rr === total) statusText = 'RUSAK RINGAN (PERLU PERBAIKAN)';
                         else statusText = `Baik:${baik} | RR:${rr} | RB:${rb}`;
                     } else statusText = 'DATA KOSONG';
-                    
                     const readableText = `[ASET MILIK RSUD LEBONG]\n--------------------------------------------\nNAMA BARANG  : ${item.nama.toUpperCase()}\nMERK/TYPE    : ${item.merk ? item.merk.toUpperCase() : '-'}\nKODE ASET    : ${item.kode ? item.kode.toUpperCase() : '-'}\nKODE ASPAK   : ${item.kode_aspak ? item.kode_aspak.toUpperCase() : '-'}\nLOKASI UNIT  : ${item.lokasi.toUpperCase()}\nTAHUN        : ${item.tahun}\nKONDISI      : ${statusText}\nNO SERTIFIKAT: ${item.noSertifikat ? item.noSertifikat : '-'}\nPENERBIT     : ${item.penerbitSertifikat ? item.penerbitSertifikat : '-'}\nLINK URL     : ${item.linkSertifikat ? item.linkSertifikat : '-'}`;
-                    
                     new QRious({ element: canvasRef.current, value: readableText, size: 200, background: 'white', foreground: 'black', level: 'H' });
                 }
             }, [isOpen, item]);
@@ -562,18 +572,13 @@
                 { id: 'settings', label: 'Pengaturan', icon: role === 'super_admin' ? 'Settings' : 'User', color: 'bg-purple-500', shadow: 'shadow-purple-500/40' },
             ];
             return (
-                // UPDATE: Menghapus "backdrop-blur-xl bg-black/10" agar background transparan murni dan menyatu
                 <aside className="hidden md:flex flex-col w-80 h-screen fixed top-0 left-0 border-r border-white/20 z-50 text-white shadow-2xl">
-                    
-                    {/* UPDATE: Menghapus "bg-black/10 backdrop-blur-sm" dari Header Sidebar */}
                     <div className="p-8 pb-4">
                         <div className="flex items-center gap-4 mb-2">
                             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white shadow-lg border border-white/20"><Icon name="Box" size={24}/></div>
                             <div><h1 className="font-bold font-display text-white text-2xl tracking-tight">SIMAS</h1><p className="text-[10px] font-bold text-white/80 uppercase tracking-widest">RSUD LEBONG</p></div>
                         </div>
                     </div>
-
-                    {/* UPDATE: Menghapus "bg-black/5 backdrop-blur-sm" dari List Menu */}
                     <div className="flex-1 py-6 px-6 space-y-4 overflow-y-auto no-scrollbar"> 
                         <p className="px-2 text-[10px] font-bold text-white/60 uppercase tracking-widest mb-2">Menu Utama</p>
                         {tabs.map(tab => {
@@ -586,8 +591,6 @@
                             );
                         })}
                     </div>
-
-                    {/* UPDATE: Menghapus "bg-black/20 backdrop-blur-md" dari Footer Sidebar */}
                     <div className="p-6 border-t border-white/10">
                         <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 text-xs font-bold text-red-100 hover:bg-red-500/20 p-3 rounded-xl transition-colors border border-white/10 hover:border-red-500/30 hover:text-white"><Icon name="LogOut" size={16}/> KELUAR</button>
                     </div>
@@ -957,7 +960,7 @@
             };
 
             return (
-                <div className="min-h-screen bg-animate-blue pb-32 md:pb-10 mesh-bg-light" style={{background: 'linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)', backgroundSize: '400% 400%', animation: 'gradientBG 15s ease infinite'}}>
+                <div className="min-h-screen pb-32 md:pb-10" style={GRADIENT_STYLE}>
                     <div className="glass-panel border-b-0 sticky top-0 z-30 px-6 py-4 safe-area-top">
                         <div className="flex justify-between items-center max-w-7xl mx-auto w-full mb-4">
                             <h2 className="text-2xl font-bold font-display text-slate-900">Pusat Laporan</h2>
@@ -1136,7 +1139,7 @@
             const handleSub = (e) => { e.preventDefault(); const fd = new FormData(e.target); onSaveUser(Object.fromEntries(fd.entries())); setEditMode(false); };
 
             return (
-                <div className="min-h-screen pb-32 md:pb-10">
+                <div className="min-h-screen pb-32 md:pb-10" style={GRADIENT_STYLE}>
                     <div className="bg-primary-900 pt-16 pb-28 px-6 safe-area-top rounded-b-[3rem] shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-600 rounded-full blur-[150px] opacity-10 -mr-20 -mt-20"></div>
                         <div className="relative z-10 flex items-center justify-between max-w-7xl mx-auto w-full mb-6">
@@ -1200,15 +1203,32 @@
             useEffect(() => {
                 const initFirebase = async () => {
                     try {
-                        if (typeof firebase !== 'undefined' && typeof __firebase_config !== 'undefined') {
-                            if (!firebase.apps.length) firebase.initializeApp(JSON.parse(__firebase_config));
+                        if (typeof firebase !== 'undefined') {
+                            // LOGIKA UPDATE: Cek apakah ada config environment (agar jalan di preview)
+                            // Jika tidak ada (saat deploy), gunakan userFirebaseConfig
+                            let configToUse = userFirebaseConfig;
+                            if (typeof __firebase_config !== 'undefined') {
+                                configToUse = JSON.parse(__firebase_config);
+                            }
+
+                            if (!firebase.apps.length) firebase.initializeApp(configToUse);
+                            
                             const auth = firebase.auth();
                             setDb(firebase.firestore());
-                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await auth.signInWithCustomToken(__initial_auth_token);
-                            else await auth.signInAnonymously();
+                            
+                            // Cek token auth environment (untuk menghindari error permission di preview)
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await auth.signInWithCustomToken(__initial_auth_token);
+                            } else {
+                                await auth.signInAnonymously();
+                            }
+                            
                             auth.onAuthStateChanged(setFirebaseUser);
                         }
-                    } catch (err) { console.error("Firebase err:", err); }
+                    } catch (err) { 
+                        console.error("Firebase err:", err);
+                        setToast({ message: "Gagal terhubung ke database. Cek konsol.", type: "error" });
+                    }
                 };
                 initFirebase();
             }, []);
