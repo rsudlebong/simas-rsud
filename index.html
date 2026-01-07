@@ -113,7 +113,7 @@
             measurementId: "G-1SBB6S5M9R"
         };
         
-        // Gunakan ID dari environment jika ada, jika tidak gunakan default proyek Anda
+        // ID Aplikasi untuk Path Database
         const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'simas-rsud-lebong-data'; 
         const COLLECTION_INVENTORY = 'inventory';
         const COLLECTION_USERS = 'app_users';
@@ -1204,30 +1204,42 @@
                 const initFirebase = async () => {
                     try {
                         if (typeof firebase !== 'undefined') {
-                            // LOGIKA UPDATE: Cek apakah ada config environment (agar jalan di preview)
-                            // Jika tidak ada (saat deploy), gunakan userFirebaseConfig
+                            // LOGIKA HYBRID:
+                            // 1. Jika di Preview Gemini: Gunakan __firebase_config sistem (agar tidak error domain blocked)
+                            // 2. Jika di Hosting Sendiri: Gunakan userFirebaseConfig (milik Anda)
                             let configToUse = userFirebaseConfig;
                             if (typeof __firebase_config !== 'undefined') {
                                 configToUse = JSON.parse(__firebase_config);
+                                console.log("Using Environment Config");
+                            } else {
+                                console.log("Using User Config");
                             }
 
                             if (!firebase.apps.length) firebase.initializeApp(configToUse);
                             
                             const auth = firebase.auth();
-                            setDb(firebase.firestore());
+                            const firestore = firebase.firestore();
+                            setDb(firestore);
                             
-                            // Cek token auth environment (untuk menghindari error permission di preview)
+                            // Auth Handler
                             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                                 await auth.signInWithCustomToken(__initial_auth_token);
                             } else {
                                 await auth.signInAnonymously();
                             }
                             
-                            auth.onAuthStateChanged(setFirebaseUser);
+                            auth.onAuthStateChanged((u) => {
+                                setFirebaseUser(u);
+                                if (u) {
+                                    // Notifikasi Berhasil Konek
+                                    setToast({ message: "✅ Tersambung ke Database", type: "success" });
+                                }
+                            });
                         }
                     } catch (err) { 
-                        console.error("Firebase err:", err);
-                        setToast({ message: "Gagal terhubung ke database. Cek konsol.", type: "error" });
+                        console.error("Firebase Init Error:", err);
+                        // Notifikasi Gagal
+                        setToast({ message: "❌ Gagal Konek: " + err.message, type: "error" });
                     }
                 };
                 initFirebase();
