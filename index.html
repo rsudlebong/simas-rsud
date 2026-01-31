@@ -102,7 +102,6 @@
         const { useState, useEffect, useMemo, useRef } = React;
 
         // --- CONFIG & DATA ---
-        // Konfigurasi Firebase Milik Anda (Akan digunakan saat di-deploy ke hosting sendiri)
         const userFirebaseConfig = {
             apiKey: "AIzaSyCcLX-hr3_d98l12EtDpOnFre94cmT-0A0",
             authDomain: "simas-rsud-lebong.firebaseapp.com",
@@ -113,12 +112,10 @@
             measurementId: "G-1SBB6S5M9R"
         };
         
-        // ID Aplikasi untuk Path Database
         const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'simas-rsud-lebong-data'; 
         const COLLECTION_INVENTORY = 'inventory';
         const COLLECTION_USERS = 'app_users';
         
-        // GRADIENT STYLE HANYA DIGUNAKAN DI CONTAINER UTAMA
         const GRADIENT_STYLE = {
             background: 'linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab)', 
             backgroundSize: '400% 400%', 
@@ -886,7 +883,7 @@
 
         const ReportsView = ({ user, inventory, onLogout, units }) => {
             const [filter, setFilter] = useState('All');
-            const [conditionFilter, setConditionFilter] = useState('All');
+            const [categoryFilter, setCategoryFilter] = useState('All'); // UPDATED: condition -> category
             const [unitSearch, setUnitSearch] = useState('');
             const [downloadMsg, setDownloadMsg] = useState('');
 
@@ -903,11 +900,12 @@
                     baseData = inventory.filter(i => i.lokasi === user.unit);
                 }
                 let data = filter === 'All' ? baseData : baseData.filter(i => i.lokasi === filter);
-                if (conditionFilter !== 'All') {
-                    if (conditionFilter === 'RR') data = data.filter(i => parseInt(i.jumlahRR || 0) > 0);
-                    else if (conditionFilter === 'RB') data = data.filter(i => parseInt(i.jumlahRB || 0) > 0);
-                    else if (conditionFilter === 'Kalibrasi') data = data.filter(i => checkCalibrationAlert(i.lastKalibrasi));
+                
+                // UPDATED FILTER LOGIC: Filter by Category field
+                if (categoryFilter !== 'All') {
+                    data = data.filter(i => (i.kategori || 'ALKES') === categoryFilter);
                 }
+                
                 const groups = {}; 
                 data.forEach(item => {
                     const key = `${item.nama}|${item.merk}|${item.tahun}|${item.lokasi}`;
@@ -915,7 +913,7 @@
                     groups[key].baik += parseInt(item.jumlahBaik || 0); groups[key].rr += parseInt(item.jumlahRR || 0); groups[key].rb += parseInt(item.jumlahRB || 0); groups[key].jumlah += parseInt(item.jumlah || 0);
                 });
                 return Object.values(groups);
-            }, [inventory, filter, conditionFilter, user]);
+            }, [inventory, filter, categoryFilter, user]);
 
             const executePDF = () => {
                 const { jsPDF } = window.jspdf;
@@ -947,16 +945,49 @@
             const executeExcel = () => {
                 if (aggregatedData.length === 0) return;
                 setDownloadMsg('Menyiapkan Excel...');
-                const headers = [ ["NO", "NAMA BARANG", "KODE ASPAK", "KATEGORI", "MERK / TYPE", "TAHUN", "JUMLAH", "KONDISI", "", "", "TANGGAL KALIBRASI", "NO. SERTIFIKAT"], ["", "", "", "", "", "", "", "BAIK", "RUSAK RINGAN", "RUSAK BERAT", "", ""] ];
-                const dataRows = aggregatedData.map((item, index) => [ index + 1, item.nama.toUpperCase(), item.kode_aspak || '-', item.kategori || 'ALKES', (item.merk || '-').toUpperCase(), item.tahun, parseInt(item.jumlah || 0), parseInt(item.baik || 0), parseInt(item.rr || 0), parseInt(item.rb || 0), formatDate(item.lastKalibrasi), item.noSertifikat || '-' ]);
-                const ws = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
-                ws['!merges'] = [ { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } }, { s: { r: 0, c: 5 }, e: { r: 1, c: 5 } }, { s: { r: 0, c: 6 }, e: { r: 1, c: 6 } }, { s: { r: 0, c: 7 }, e: { r: 0, c: 9 } }, { s: { r: 0, c: 10 }, e: { r: 1, c: 10 } }, { s: { r: 0, c: 11 }, e: { r: 1, c: 11 } } ];
-                ws['!cols'] = [ { wch: 5 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 } ];
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Laporan Aset");
-                const fileName = user.role === 'super_admin' ? filter : user.unit;
-                XLSX.writeFile(wb, `SIMAS_ASET_${fileName.replace(/\s+/g, '_')}.xlsx`);
-                setDownloadMsg('');
+                
+                try {
+                    const headers = [ ["NO", "NAMA BARANG", "KODE ASPAK", "KATEGORI", "MERK / TYPE", "TAHUN", "JUMLAH", "KONDISI", "", "", "TANGGAL KALIBRASI", "NO. SERTIFIKAT"], ["", "", "", "", "", "", "", "BAIK", "RUSAK RINGAN", "RUSAK BERAT", "", ""] ];
+                    const dataRows = aggregatedData.map((item, index) => [ index + 1, item.nama.toUpperCase(), item.kode_aspak || '-', item.kategori || 'ALKES', (item.merk || '-').toUpperCase(), item.tahun, parseInt(item.jumlah || 0), parseInt(item.baik || 0), parseInt(item.rr || 0), parseInt(item.rb || 0), formatDate(item.lastKalibrasi), item.noSertifikat || '-' ]);
+                    
+                    const ws = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
+                    ws['!merges'] = [ { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } }, { s: { r: 0, c: 5 }, e: { r: 1, c: 5 } }, { s: { r: 0, c: 6 }, e: { r: 1, c: 6 } }, { s: { r: 0, c: 7 }, e: { r: 0, c: 9 } }, { s: { r: 0, c: 10 }, e: { r: 1, c: 10 } }, { s: { r: 0, c: 11 }, e: { r: 1, c: 11 } } ];
+                    ws['!cols'] = [ { wch: 5 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 } ];
+                    
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Laporan Aset");
+                    
+                    const fileNameStr = user.role === 'super_admin' ? filter : user.unit;
+                    const finalFileName = `SIMAS_ASET_${fileNameStr.replace(/\s+/g, '_')}.xlsx`;
+
+                    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+                    
+                    function s2ab(s) {
+                        const buf = new ArrayBuffer(s.length);
+                        const view = new Uint8Array(buf);
+                        for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+                        return buf;
+                    }
+
+                    const blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    document.body.appendChild(a);
+                    a.style = "display: none";
+                    a.href = url;
+                    a.download = finalFileName;
+                    a.click();
+                    
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        setDownloadMsg('');
+                    }, 100);
+
+                } catch (err) {
+                    console.error("Excel Export Error:", err);
+                    setDownloadMsg('Gagal membuat Excel.');
+                }
             };
 
             return (
@@ -988,13 +1019,12 @@
                                 </div>
                             )}
                             <div className="bg-white p-8 rounded-[2rem] shadow-card border border-slate-100 flex flex-col justify-center">
-                                <label className="block text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest">Filter Kondisi</label>
+                                <label className="block text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest">Filter Kategori</label>
                                 <div className="relative">
-                                    <select value={conditionFilter} onChange={e=>setConditionFilter(e.target.value)} className="input-float w-full px-4 py-3.5 rounded-xl font-medium border border-slate-200 cursor-pointer hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/10 outline-none transition-all appearance-none pr-10 bg-white">
-                                        <option value="All">Semua Kondisi</option>
-                                        <option value="RR">Rusak Ringan</option>
-                                        <option value="RB">Rusak Berat</option>
-                                        <option value="Kalibrasi">Perlu Kalibrasi</option>
+                                    <select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)} className="input-float w-full px-4 py-3.5 rounded-xl font-medium border border-slate-200 cursor-pointer hover:border-slate-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/10 outline-none transition-all appearance-none pr-10 bg-white">
+                                        <option value="All">Semua Kategori</option>
+                                        <option value="ALKES">ALKES (Alat Kesehatan)</option>
+                                        <option value="NON ALKES">NON ALKES</option>
                                     </select>
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><Icon name="ChevronDown" size={20} /></div>
                                 </div>
@@ -1018,7 +1048,6 @@
                         <div className="bg-white rounded-[2.5rem] shadow-card border border-slate-100 overflow-hidden p-6 md:p-8">
                             <h3 className="font-bold text-slate-800 mb-6 text-sm tracking-widest uppercase flex items-center gap-2"><div className="w-1.5 h-6 bg-primary-500 rounded-full"></div> Pratinjau Data</h3>
                             
-                            {/* TAMPILAN MOBILE: KARTU PROFESIONAL */}
                             <div className="md:hidden space-y-4">
                                 {aggregatedData.length === 0 ? (
                                     <div className="text-center py-10 text-slate-400 text-sm font-medium">Data Kosong</div>
@@ -1035,11 +1064,7 @@
                                             
                                             <div className="flex flex-wrap gap-2 mb-4">
                                                 <span className="text-[10px] font-mono font-medium text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">ASPAK: {row.kode_aspak}</span>
-                                                {row.lastKalibrasi && row.lastKalibrasi !== '-' && (
-                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded border flex items-center gap-1 ${checkCalibrationAlert(row.lastKalibrasi) ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white text-slate-500 border-slate-200'}`}>
-                                                        <Icon name="Clock" size={10}/> {formatDate(row.lastKalibrasi)}
-                                                    </span>
-                                                )}
+                                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100 uppercase">{row.kategori}</span>
                                             </div>
 
                                             <div className="grid grid-cols-4 gap-1 bg-white rounded-2xl p-2 border border-slate-200/60 shadow-sm">
@@ -1065,7 +1090,6 @@
                                 )}
                             </div>
 
-                            {/* TAMPILAN DESKTOP: TABEL (Hidden on mobile) */}
                             <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200">
                                 <table className="w-full text-sm text-left">
                                     <thead className="text-xs text-white uppercase bg-primary-600 font-display">
@@ -1091,7 +1115,10 @@
                                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
                                                     <td className="px-6 py-4 font-medium text-slate-900">
                                                         <div className="font-bold uppercase">{row.nama}</div>
-                                                        <div className="text-[10px] text-slate-400 font-bold mt-0.5">{row.merk}</div>
+                                                        <div className="flex gap-2 items-center mt-1">
+                                                            <span className="text-[9px] text-slate-400 font-bold">{row.merk}</span>
+                                                            <span className="text-[8px] bg-slate-100 px-1 rounded text-slate-500 font-black">{row.kategori}</span>
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-center">
                                                         <span className="bg-slate-100 text-slate-600 font-mono font-bold text-[10px] px-2 py-1 rounded border border-slate-200">{row.kode_aspak}</span>
@@ -1100,17 +1127,9 @@
                                                         <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-1 rounded-lg border border-primary-100">{row.lokasi}</span>
                                                     </td>
                                                     <td className="px-6 py-4 text-center font-black text-slate-800">{row.jumlah}</td>
-                                                    
-                                                    <td className="px-4 py-4 text-center bg-emerald-50/30 text-emerald-700 font-bold border-l border-slate-100">
-                                                        {row.baik > 0 ? row.baik : <span className="text-slate-300">-</span>}
-                                                    </td>
-                                                    <td className="px-4 py-4 text-center bg-orange-50/30 text-orange-600 font-bold border-l border-slate-100">
-                                                        {row.rr > 0 ? row.rr : <span className="text-slate-300">-</span>}
-                                                    </td>
-                                                    <td className="px-4 py-4 text-center bg-red-50/30 text-red-600 font-bold border-l border-slate-100">
-                                                        {row.rb > 0 ? row.rb : <span className="text-slate-300">-</span>}
-                                                    </td>
-                                                    
+                                                    <td className="px-4 py-4 text-center bg-emerald-50/30 text-emerald-700 font-bold border-l border-slate-100">{row.baik > 0 ? row.baik : <span className="text-slate-300">-</span>}</td>
+                                                    <td className="px-4 py-4 text-center bg-orange-50/30 text-orange-600 font-bold border-l border-slate-100">{row.rr > 0 ? row.rr : <span className="text-slate-300">-</span>}</td>
+                                                    <td className="px-4 py-4 text-center bg-red-50/30 text-red-600 font-bold border-l border-slate-100">{row.rb > 0 ? row.rb : <span className="text-slate-300">-</span>}</td>
                                                     <td className="px-6 py-4 text-center text-xs text-slate-500 border-l border-slate-100">
                                                         {row.lastKalibrasi && row.lastKalibrasi !== '-' ? (
                                                             <div className={`font-medium ${checkCalibrationAlert(row.lastKalibrasi) ? 'text-orange-500' : 'text-slate-600'}`}>
@@ -1183,7 +1202,6 @@
             );
         };
 
-        // --- MAIN APP ---
         const App = () => {
             const [appUser, setAppUser] = useState(null); 
             const [firebaseUser, setFirebaseUser] = useState(null); 
@@ -1204,24 +1222,16 @@
                 const initFirebase = async () => {
                     try {
                         if (typeof firebase !== 'undefined') {
-                            // LOGIKA HYBRID:
-                            // 1. Jika di Preview Gemini: Gunakan __firebase_config sistem (agar tidak error domain blocked)
-                            // 2. Jika di Hosting Sendiri: Gunakan userFirebaseConfig (milik Anda)
                             let configToUse = userFirebaseConfig;
                             if (typeof __firebase_config !== 'undefined') {
                                 configToUse = JSON.parse(__firebase_config);
-                                console.log("Using Environment Config");
-                            } else {
-                                console.log("Using User Config");
                             }
 
                             if (!firebase.apps.length) firebase.initializeApp(configToUse);
-                            
                             const auth = firebase.auth();
                             const firestore = firebase.firestore();
                             setDb(firestore);
                             
-                            // Auth Handler
                             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                                 await auth.signInWithCustomToken(__initial_auth_token);
                             } else {
@@ -1230,15 +1240,11 @@
                             
                             auth.onAuthStateChanged((u) => {
                                 setFirebaseUser(u);
-                                if (u) {
-                                    // Notifikasi Berhasil Konek
-                                    setToast({ message: "✅ Tersambung ke Database", type: "success" });
-                                }
+                                if (u) setToast({ message: "✅ Tersambung ke Database", type: "success" });
                             });
                         }
                     } catch (err) { 
                         console.error("Firebase Init Error:", err);
-                        // Notifikasi Gagal
                         setToast({ message: "❌ Gagal Konek: " + err.message, type: "error" });
                     }
                 };
@@ -1256,14 +1262,9 @@
                     const d = s.docs.map(x => ({ id: x.id, ...x.data() }));
                     setInventory(d); 
                     localStorage.setItem('simas_rsud_data', JSON.stringify(d));
-                    if(s.empty && initialInventoryData.length > 0) {
-                        const b = db.batch();
-                        initialInventoryData.forEach(i => { const ref = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_INVENTORY).doc(); const { id, ...rest } = i; b.set(ref, rest); });
-                        b.commit();
-                    }
                 });
                 const userUnsub = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_USERS).onSnapshot(s => {
-                    if(!s.empty) setUsersList(s.docs.map(x=>({id:x.id,...x.data()}))); else initialUsersData.forEach(u=>db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_USERS).add(u));
+                    if(!s.empty) setUsersList(s.docs.map(x=>({id:x.id,...x.data()})));
                 });
                 return () => { invUnsub(); userUnsub(); };
             }, [firebaseUser, db]);
@@ -1290,8 +1291,8 @@
                 if (total <= 0) { setToast({ message: "Gagal: Jumlah total aset tidak boleh 0!", type: "error" }); return false; }
                 const item = { ...d, jumlah: total }; const { id, ...dataToSave } = item;
                 try {
-                    if (id) { if(db) await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_INVENTORY).doc(id).set(dataToSave, { merge: true }); else setInventory(prev => prev.map(x => x.id === id ? { ...item, id: id } : x)); } 
-                    else { if(db) await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_INVENTORY).add(dataToSave); else setInventory(prev => [...prev, { ...item, id: Date.now().toString() }]); }
+                    if (id) { if(db) await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_INVENTORY).doc(id).set(dataToSave, { merge: true }); } 
+                    else { if(db) await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_INVENTORY).add(dataToSave); }
                     setScreen('inventory'); setEditItem(null); setToast({ message: "Data berhasil disimpan!", type: "success" }); return true;
                 } catch (error) { console.error(error); setToast({ message: "Gagal menyimpan data.", type: "error" }); return false; }
             };
@@ -1299,15 +1300,13 @@
             const handleDel = async (id, type) => {
                 if (!id) return;
                 try {
-                    if(db) { if(type === 'inventory') setInventory(p => p.filter(x => x.id !== id)); else setUsersList(p => p.filter(x => x.id !== id)); await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(type==='inventory'?COLLECTION_INVENTORY:COLLECTION_USERS).doc(id).delete(); } 
-                    else { if(type==='inventory') setInventory(p=>p.filter(x=>x.id!==id)); else setUsersList(p=>p.filter(x=>x.id!==id)); }
+                    if(db) await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(type==='inventory'?COLLECTION_INVENTORY:COLLECTION_USERS).doc(id).delete();
                     setToast({ message: "Data berhasil dihapus.", type: "success" });
                 } catch (e) { console.error("Delete failed", e); setToast({ message: "Gagal menghapus data.", type: "error" }); } finally { setDeleteModal({isOpen:false, type: null, targetId: null}); }
             };
 
             const handleSaveUser = async (d) => {
                 if(db) { const ref = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(COLLECTION_USERS); d.id ? await ref.doc(d.id).update(d) : await ref.add(d); }
-                else { if(d.id) setUsersList(p=>p.map(x=>x.id===d.id?d:x)); else setUsersList(p=>[...p,{...d, id:Date.now().toString()}]); }
                 setToast({ message: "Data user disimpan.", type: "success" });
             };
 
