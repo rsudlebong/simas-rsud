@@ -6,10 +6,16 @@
     <title>SIMAS RSUD - Enterprise Asset Management</title>
     
     <!-- PWA & Mobile Meta Tags -->
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#1e40af">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SIMAS RSUD">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="SIMAS RSUD">
+    <meta name="msapplication-TileColor" content="#1e40af">
+    
+    <!-- Web App Manifest (Embedded via Data URI for Single File Mandate) -->
+    <link rel="manifest" href='data:application/json,{"name":"SIMAS RSUD Lebong","short_name":"SIMAS","description":"Enterprise Asset Management RSUD Lebong","start_url":".","display":"standalone","background_color":"#ffffff","theme_color":"#1e40af","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/1160/1160358.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}'>
 
     <!-- Dependencies -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -35,6 +41,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script>
+        // Mencegah ReferenceError jika CDN Tailwind belum siap atau gagal dimuat
+        window.tailwind = window.tailwind || { config: {} };
         tailwind.config = {
             theme: {
                 extend: {
@@ -763,7 +771,7 @@
                                                     <td><span className="text-[10px] font-bold text-primary-700 bg-primary-50 px-3 py-1.5 rounded-lg uppercase border border-primary-100 tracking-wide">{item.lokasi}</span></td>
                                                     <td><div className="flex gap-2 text-[10px] font-bold"><span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-100 flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>{item.jumlahBaik || 0}</span><span className="bg-orange-50 text-orange-700 px-2.5 py-1 rounded-lg border border-orange-100 flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>{item.jumlahRR || 0}</span><span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-lg border border-red-100 flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>{item.jumlahRB || 0}</span></div></td>
                                                     <td className="text-xs">{item.noSertifikat && item.noSertifikat !== '-' ? <span className="block font-bold text-slate-700">{item.noSertifikat}</span> : <span className="text-slate-300 italic">Tidak ada</span>}{item.linkSertifikat && (<a href={item.linkSertifikat} target="_blank" className="text-primary-600 hover:text-primary-800 hover:underline flex items-center gap-1 mt-1 font-bold"><Icon name="Link" size={10} /> Dokumen</a>)}</td>
-                                                    <td><div className="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity"><button onClick={() => onShowQR(item)} title="QR Code" className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors border border-transparent hover:border-slate-200"><Icon name="QrCode" size={16}/></button><button onClick={() => onEdit(item)} title="Edit" className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border border-transparent hover:border-blue-100"><Icon name="Edit" size={16}/></button><button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} title="Hapus" className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100"><Icon name="Trash" size={16}/></button></div></td>
+                                                    <td><div className="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity"><button onClick={() => onShowQR(item)} title="QR Code" className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors border border-transparent hover:border-slate-200"><Icon name="QrCode" size={16}/></button><button onClick={() => onEdit(item)} title="Edit" className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border border-transparent hover:border-blue-100"><Icon name="Edit" size={16}/></button><button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} title="Hapus" className="p-2 text-red-500 hover:bg-red-100 rounded-xl transition-colors border border-transparent hover:border-red-100"><Icon name="Trash" size={16}/></button></div></td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -852,7 +860,7 @@
                                         <h3 className="text-xs font-black text-blue-300 uppercase tracking-widest mb-6 text-center">Jumlah & Kondisi</h3>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="text-center group"><label className="block text-[10px] font-bold text-emerald-600 mb-2 uppercase tracking-wide group-focus-within:scale-105 transition-transform">Baik</label><input name="jumlahBaik" type="number" min="0" onWheel={(e) => e.target.blur()} value={qtyB} onChange={e=>setQtyB(parseInt(e.target.value)||0)} className="w-full text-center py-3 rounded-2xl font-black text-xl border-emerald-100 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 text-slate-700 bg-white shadow-sm transition-all" /></div>
-                                            <div className="text-center group"><label className="block text-[10px] font-bold text-orange-500 mb-2 uppercase tracking-wide group-focus-within:scale-105 transition-transform">R. Ringan</label><input name="jumlahRR" type="number" min="0" onWheel={(e) => e.target.blur()} value={qtyRR} onChange={e=>setQtyRR(parseInt(e.target.value)||0)} className="w-full text-center py-3 rounded-2xl font-black text-xl border-orange-100 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 text-slate-700 bg-white shadow-sm transition-all" /></div>
+                                            <div className="text-center group"><label className="block text-[10px] font-bold text-orange-500 mb-2 uppercase tracking-wide group-focus-within:scale-105 transition-transform">R. Ringan</label><input name="jumlahRR" type="number" min="0" onWheel={(e) => e.target.blur()} value={qtyRR} onChange={e=>setQtyRR(parseInt(e.target.value)||0)} className="w-full text-center py-3 rounded-2xl font-black text-xl border-orange-100 focus:border-orange-500 focus:ring-4 focus:ring-emerald-500/10 text-slate-700 bg-white shadow-sm transition-all" /></div>
                                             <div className="text-center group"><label className="block text-[10px] font-bold text-red-500 mb-2 uppercase tracking-wide group-focus-within:scale-105 transition-transform">R. Berat</label><input name="jumlahRB" type="number" min="0" onWheel={(e) => e.target.blur()} value={qtyRB} onChange={e=>setQtyRB(parseInt(e.target.value)||0)} className="w-full text-center py-3 rounded-2xl font-black text-xl border-red-100 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 text-slate-700 bg-white shadow-sm transition-all" /></div>
                                         </div>
                                         <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center"><span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Aset</span><span className={`text-3xl font-bold font-display ${total === 0 ? 'text-red-500' : 'text-slate-800'}`}>{total}</span><input type="hidden" name="jumlah" value={total} /></div>
@@ -937,7 +945,6 @@
                 doc.text("Penanggung Jawab Ruangan", pageWidth - 50, finalY + 5, { align: "center" }); 
                 doc.text("( ........................................... )", pageWidth - 50, finalY + 25, { align: "center" });
                 
-                // UPDATED PDF DOWNLOAD LOGIC FOR PWA MOBILE COMPATIBILITY
                 const fileNameStr = user.role === 'super_admin' ? filter : user.unit;
                 const pdfName = `SIMAS_LAPORAN_${fileNameStr.replace(/\s+/g, '_')}.pdf`;
                 
@@ -957,7 +964,7 @@
                     }, 100);
                 } catch (err) {
                     console.error("PDF Export Error:", err);
-                    doc.save(pdfName); // Fallback to original method
+                    doc.save(pdfName); 
                     setDownloadMsg('');
                 }
             };
@@ -1269,6 +1276,12 @@
                     }
                 };
                 initFirebase();
+
+                // PWA Installation Hint
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    console.log('PWA is ready to be installed');
+                });
             }, []);
 
             useEffect(() => {
