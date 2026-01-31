@@ -661,7 +661,7 @@
                     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full animate-enter">
                         <div className="mb-8">
                             <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-blue-500/30 relative overflow-hidden group border border-white/10 w-full">
-                                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white rounded-full blur-[150px] opacity-20 -mr-20 -mt-20 group-hover:opacity-30 transition-opacity"></div>
+                                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white rounded-full blur-[150px] opacity-20 group-hover:opacity-30 transition-opacity"></div>
                                 <div className="relative z-10">
                                     <div className="flex justify-between items-start mb-10"><div className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20"><Icon name="Box" size={28}/></div><span className="text-xs font-bold bg-white/20 text-white px-3 py-1.5 rounded-full shadow-lg tracking-wide backdrop-blur-md border border-white/10">Ringkasan Aset</span></div>
                                     <h2 className="text-7xl font-bold font-display mb-1 tracking-tighter text-white drop-shadow-sm">{stats.total}</h2><p className="text-blue-100 font-medium mb-10">Total Unit Terdaftar</p>
@@ -883,7 +883,7 @@
 
         const ReportsView = ({ user, inventory, onLogout, units }) => {
             const [filter, setFilter] = useState('All');
-            const [categoryFilter, setCategoryFilter] = useState('All'); // UPDATED: condition -> category
+            const [categoryFilter, setCategoryFilter] = useState('All'); 
             const [unitSearch, setUnitSearch] = useState('');
             const [downloadMsg, setDownloadMsg] = useState('');
 
@@ -901,7 +901,6 @@
                 }
                 let data = filter === 'All' ? baseData : baseData.filter(i => i.lokasi === filter);
                 
-                // UPDATED FILTER LOGIC: Filter by Category field
                 if (categoryFilter !== 'All') {
                     data = data.filter(i => (i.kategori || 'ALKES') === categoryFilter);
                 }
@@ -937,9 +936,30 @@
                 doc.setFont("times", "normal").text(`Lebong, ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}`, pageWidth - 50, finalY, { align: "center" });
                 doc.text("Penanggung Jawab Ruangan", pageWidth - 50, finalY + 5, { align: "center" }); 
                 doc.text("( ........................................... )", pageWidth - 50, finalY + 25, { align: "center" });
-                const fileName = user.role === 'super_admin' ? filter : user.unit;
-                doc.save(`SIMAS_LAPORAN_${fileName.replace(/\s+/g, '_')}.pdf`);
-                setDownloadMsg('');
+                
+                // UPDATED PDF DOWNLOAD LOGIC FOR PWA MOBILE COMPATIBILITY
+                const fileNameStr = user.role === 'super_admin' ? filter : user.unit;
+                const pdfName = `SIMAS_LAPORAN_${fileNameStr.replace(/\s+/g, '_')}.pdf`;
+                
+                try {
+                    const blob = doc.output('blob');
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    document.body.appendChild(a);
+                    a.style = "display: none";
+                    a.href = url;
+                    a.download = pdfName;
+                    a.click();
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        setDownloadMsg('');
+                    }, 100);
+                } catch (err) {
+                    console.error("PDF Export Error:", err);
+                    doc.save(pdfName); // Fallback to original method
+                    setDownloadMsg('');
+                }
             };
 
             const executeExcel = () => {
